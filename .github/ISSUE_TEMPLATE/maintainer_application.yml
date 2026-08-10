@@ -1,0 +1,81 @@
+name: 申请成为项目维护者
+description: 申请参与 Wanan Skills 的长期维护与版本兼容工作
+title: "[维护者申请] "
+labels:
+  - maintainer-application
+body:
+  - type: input
+    id: github_username
+    attributes:
+      label: GitHub 用户名
+      description: 请填写你的 GitHub 用户名。
+      placeholder: 例如：function0553
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: 为什么想参与维护 Wanan Skills
+      description: 请简要说明你的动机和希望带来的帮助。
+    validations:
+      required: true
+
+  - type: textarea
+    id: technical_background
+    attributes:
+      label: 熟悉哪些技术或 AI 编程工具
+      description: 请列出你熟悉的技术栈、开发工具或 AI 编程工具。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: wanan_version
+    attributes:
+      label: 使用过哪个 Wanan 版本
+      description: 请选择你主要使用过的版本。
+      options:
+        - Wanan V2.0
+        - Wanan V2.1
+        - Wanan V2.1 特供版
+        - 尚未正式使用
+    validations:
+      required: true
+
+  - type: textarea
+    id: maintenance_scope
+    attributes:
+      label: 准备主要维护哪些内容
+      description: 请说明你希望负责的版本、文档、规则、脚本或其他维护范围。
+    validations:
+      required: true
+
+  - type: dropdown
+    id: compatibility_principle
+    attributes:
+      label: 是否愿意遵守现有版本兼容原则
+      description: 修改规则或功能时，需要明确评估对旧版本的影响。
+      options:
+        - 是，我愿意遵守
+        - 否，或需要进一步讨论
+    validations:
+      required: true
+
+  - type: dropdown
+    id: preserve_core_features
+    attributes:
+      label: 是否承诺未经讨论不删除核心功能
+      description: 核心功能的删除或重大改变必须先说明并讨论。
+      options:
+        - 是，我承诺遵守
+        - 否，或需要进一步讨论
+    validations:
+      required: true
+
+  - type: textarea
+    id: open_source_experience
+    attributes:
+      label: 过去参与过哪些开源项目（可选）
+      description: 可填写项目链接、参与内容或相关贡献记录。
+    validations:
+      required: false

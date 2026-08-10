@@ -32,6 +32,15 @@ Wanan Skills 旨在让 AI 编程过程不仅完成代码开发，还能同步完
 
 优先从最新的 `V2.1 特供版` 开始使用；如需查看功能演进，可对比 V2.0 与 V2.1 目录。
 
+## 参与项目
+
+欢迎参与 Wanan Skills 的持续改进：
+
+- [提交 Issue](https://github.com/function0553/wanan-skills/issues/new) 反馈问题或提出建议。
+- [提交 Pull Request](https://github.com/function0553/wanan-skills/pulls) 贡献改进。
+- [申请成为项目维护者](https://github.com/function0553/wanan-skills/issues/new?template=maintainer_application.yml) 参与长期维护。
+- 提交前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
 ## 仓库结构
 
 ```text
