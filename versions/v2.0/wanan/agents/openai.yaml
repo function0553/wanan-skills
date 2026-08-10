@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wanan 工程方法论"
+  short_description: "一次预检、分支会话编排、Harness、独立验收与交接"
+  default_prompt: "Use $wanan to run this task with one-time tooling preflight, controller-led branch sessions, Harness specifications, independent acceptance, handoff, and Git checkpoints."

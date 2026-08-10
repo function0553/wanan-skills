@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wanan V2.1 工程方法论"
+  short_description: "三版视觉、结构拆解、交互决策锁定、分支验收、交接与版本控制"
+  default_prompt: "Use $wanan to run this task through one-time preflight, three-option Product Design exploration, page-structure and interaction locking, branch execution, independent acceptance, and Git checkpoints."
