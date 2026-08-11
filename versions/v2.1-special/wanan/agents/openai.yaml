@@ -1,4 +1,4 @@
 interface:
   display_name: "Wanan V2.1 特供版"
   short_description: "强制小白学习考核 + 双语术语 + Harness、分支验收、交接与版本控制"
-  default_prompt: "Use $wanan to run this task through the gated Harness workflow with mandatory current-project beginner-first learning, Chinese-annotated English technical terms, legacy-module backfill/reassessment, protected cross-session grading state, non-blocking 10-question module assessments, independent acceptance, handoff, and Git checkpoints."
+  default_prompt: "Use $wanan to run this task through the gated Harness workflow with mandatory current-project beginner-first learning taught fully in chat before any exam, Chinese-annotated English technical terms, exam questions traceable only to chat-taught knowledge IDs, post-grading review rationales in 经验学习.md, legacy-module backfill/reassessment, protected cross-session grading state, non-blocking 10-question module assessments, independent acceptance, handoff, and Git checkpoints, completion-driven branch integration, two-compaction upper-bound rotation, and directly affected targeted acceptance only."

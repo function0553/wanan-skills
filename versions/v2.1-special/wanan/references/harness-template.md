@@ -6,7 +6,7 @@ Use this as a minimum, not as permission to overwrite an established repository 
 
 - Root `AGENTS.md`
 - Root `经验学习.md` (mandatory, current-project-only user-facing study/question book)
-- Root `.wanan/assessment-state.json` (hidden, current-project-only protected grading state; never surface answer keys)
+- Root `.wanan/assessment-state.json` (hidden, current-project-only protected grading state; never dump its raw answer key; after grading, finalized answers/rationales are archived only in `经验学习.md`)
 - `spec/README.md`
 - Minimum numbered specs
 - Validation checklist
@@ -44,7 +44,7 @@ Current user instruction > this file > spec acceptance > other notes.
 <Normal, unauthorized, conflict, duplicate-submit, empty, loading, and failure coverage.>
 
 ## 7. Definition of done
-<Implementation, acceptance, mandatory module learning/assessment, documentation, handoff, and Git checkpoint requirements.>
+<Implementation, directly affected unit/contract/acceptance checks only (no full-repository run), mandatory module learning/assessment, documentation, handoff, and Git checkpoint requirements. Completed branches integrate immediately; two compactions are an upper bound, not a merge gate.>
 ```
 
 ## `spec/README.md`
@@ -183,12 +183,12 @@ Add interaction acceptance:
 
 ## `经验学习.md`
 
-Create exactly one user-facing study book at the active project root. Use the schema and lifecycle in [learning-assessment.md](learning-assessment.md). Also maintain hidden `.wanan/assessment-state.json` for stable grading across sessions. New projects start with `Learning mode: REQUIRED`; existing projects reconcile only real completed modules and mark any unassessed module `BACKFILL_REQUIRED` without inventing placeholder legacy modules. Materially changed assessed modules become `REASSESSMENT_REQUIRED`.
+Create exactly one user-facing study/review book at the active project root. **All exam-eligible knowledge must be taught completely in chat first**; the file archives that already-taught material, the visible paper, grading history, and post-grading explanations. Use the schema and lifecycle in [learning-assessment.md](learning-assessment.md). Also maintain hidden `.wanan/assessment-state.json` for stable grading across sessions. New projects start with `Learning mode: REQUIRED`; existing projects reconcile only real completed modules and mark any unassessed module `BACKFILL_REQUIRED` without inventing placeholder legacy modules. Materially changed assessed modules become `REASSESSMENT_REQUIRED`.
 
 ## Validation checklist
 
 - Every index link resolves.
-- The active project root contains exactly one authoritative user-facing `经验学习.md` with `Learning mode: REQUIRED` and `Project scope: CURRENT_PROJECT_ONLY`, plus protected `.wanan/assessment-state.json`.
+- The active project root contains exactly one authoritative user-facing `经验学习.md` with `Learning mode: REQUIRED` and `Project scope: CURRENT_PROJECT_ONLY`, plus protected `.wanan/assessment-state.json`; chat remains the authoritative complete teaching surface, and every exam question traces to a chat-taught `K` knowledge ID.
 - Pending learning/assessment never blocks development of a later module; every completed current/historical `MOD-NNN`, including `REASSESSMENT_REQUIRED`, remains in the mandatory assessment backlog until it has a current valid `ASSESSED` result, and all must be current before final comprehensive learning scoring.
 - Every planned slice maps to functional acceptance IDs.
 - Every frontend slice maps to visual acceptance IDs.
@@ -198,4 +198,4 @@ Create exactly one user-facing study book at the active project root. Use the sc
 - The lock records approval source, revision, and contract fingerprint; a material change reopens the design as `DRAFT`.
 - Unconfirmed rules are visibly open/configurable/fail-safe.
 - Platform-specific behavior and visuals are split where needed.
-- The definition of done includes independent acceptance, mandatory learning/assessment, handoff, and Git checkpoint.
+- The definition of done includes directly affected independent targeted acceptance, mandatory learning/assessment, handoff, and Git checkpoint; it never requires a full-repository test run or waiting for compaction before integration.

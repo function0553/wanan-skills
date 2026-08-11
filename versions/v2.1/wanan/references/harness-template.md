@@ -41,7 +41,7 @@ Current user instruction > this file > spec acceptance > other notes.
 <Normal, unauthorized, conflict, duplicate-submit, empty, loading, and failure coverage.>
 
 ## 7. Definition of done
-<Implementation, acceptance, documentation, handoff, and Git checkpoint requirements.>
+<Implementation, directly affected unit/contract/acceptance checks only (no full-repository run), documentation, handoff, and Git checkpoint requirements. Completed branches integrate immediately; two compactions are an upper bound, not a merge gate.>
 ```
 
 ## `spec/README.md`
@@ -187,4 +187,4 @@ Add interaction acceptance:
 - The lock records approval source, revision, and contract fingerprint; a material change reopens the design as `DRAFT`.
 - Unconfirmed rules are visibly open/configurable/fail-safe.
 - Platform-specific behavior and visuals are split where needed.
-- The definition of done includes independent acceptance, handoff, and Git checkpoint.
+- The definition of done includes directly affected independent targeted acceptance, handoff, and Git checkpoint; it never requires a full-repository test run or waiting for compaction before integration.

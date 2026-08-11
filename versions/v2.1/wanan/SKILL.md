@@ -1,6 +1,6 @@
 ---
 name: wanan
-description: "Run a controller-led, gated engineering workflow for non-trivial projects and feature work: perform one-time local-tool and Windows environment preflight, clarify material ambiguity, inspect relevant skills/docs and purpose-built MCP or app connectors, create or reconcile an AGENTS.md plus spec/ Harness, generate three Product Design directions, then require user-selected page structure and interaction decisions before locking frontend implementation, delegate bounded work to monitored branch sessions, rotate a branch after two compactions, independently accept and integrate completed slices, maintain HANDOFF.md, and create scoped Git checkpoints. Use when starting or resuming a project, designing or redesigning a frontend, selecting an external tool or service, requirements affect product behavior, visual or interaction direction is unset, a milestone is complete, or the user invokes Wanan/Harness methodology."
+description: "Run a controller-led, gated engineering workflow for non-trivial projects and feature work: perform one-time local-tool and Windows environment preflight, clarify material ambiguity, inspect relevant skills/docs and purpose-built MCP or app connectors, create or reconcile an AGENTS.md plus spec/ Harness, generate three Product Design directions, then require user-selected page structure and interaction decisions before locking frontend implementation, delegate bounded work to monitored branch sessions, integrate completed accepted slices immediately, use two compactions only as an upper-bound rotation boundary for unfinished work, maintain HANDOFF.md, and create scoped Git checkpoints. Use when starting or resuming a project, designing or redesigning a frontend, selecting an external tool or service, requirements affect product behavior, visual or interaction direction is unset, a milestone is complete, or the user invokes Wanan/Harness methodology."
 ---
 
 # Wanan V2.1
@@ -22,9 +22,9 @@ Keep the user-facing root session as the controller for every actionable Wanan t
 
 Use branch sessions for independently deliverable slices, research, implementation, or acceptance. Give each branch a fixed scope, owned paths, acceptance IDs, starting revision, expected artifacts, and a prohibition on unrelated writes. Prefer an isolated Git branch/worktree for concurrent writers; read-only branches may share the workspace. Monitor with the platform's wait/listener primitive and compact progress snapshots instead of repeatedly rereading full histories.
 
-Track `compaction_count` per branch. On its first observable compaction, require a branch handoff and continue. On its second, require a final branch handoff, stop assigning work to that branch, create a fresh replacement branch for unfinished scope, and pass only durable artifacts plus the handoff. Never guess that compaction occurred: count a platform compaction signal, a summarized-context boundary, or an explicit branch report.
+Track `compaction_count` per branch as a **corruption-prevention upper bound**, not as a merge gate. A branch never waits for compaction to become mergeable. If its scoped function is complete before any compaction boundary, run only the directly affected targeted acceptance, create the scoped commit, integrate it immediately, retire that completed branch, and open the next bounded branch/slice. On the first observable compaction of still-unfinished work, require a durable handoff and continue. On the second observable compaction of still-unfinished work, require a final handoff, retire the branch, and create a fresh replacement for the remaining scope. Never guess that compaction occurred: count a platform compaction signal, a summarized-context boundary, or an explicit branch report. Two compactions are the upper bound, **not a merge gate** and never a reason to keep completed work alive.
 
-Integrate only completed, accepted branch results. The controller inspects the diff/artifacts, resolves overlaps, runs proportional validation, and merges or cherry-picks the scoped Git result when one exists. A shared-workspace branch is integrated by verified artifact ownership, not by pretending a Git merge occurred. Use [session-orchestration.md](references/session-orchestration.md) for the registry, listener loop, rotation protocol, and integration rules.
+Integrate completed, accepted branch results immediately rather than waiting for compaction. The controller inspects only the scoped diff/artifacts, resolves overlaps, runs the directly affected unit/contract/acceptance checks, and merges or cherry-picks the scoped Git result when one exists. Do not add security review, unrelated audit work, or extra regression merely to occupy a branch until compaction. A shared-workspace branch is integrated by verified artifact ownership, not by pretending a Git merge occurred. Use [session-orchestration.md](references/session-orchestration.md) for the registry, listener loop, upper-bound rotation protocol, and completion-driven integration rules.
 
 If branch-session primitives are unavailable, use a subagent with the same contract. If neither is available, record orchestration as unavailable and continue in the controller without claiming branch independence.
 
@@ -155,13 +155,13 @@ Any material visual, structural, responsive, accessibility, or interaction chang
 
 Implement only the selected slice. For frontend work, refuse to scaffold, start a server, edit production frontend files, or invoke `image-to-code` unless Gate 6 is `LOCKED` and `validate-harness.ps1 -RequireFrontendLock` passes. Implement from the selected visual plus interaction register rather than filling behavior gaps yourself. Revalidate server-authoritative rules at write boundaries, preserve permission separation, use transactions/idempotency where the contract requires them, and keep sensitive data out of logs.
 
-Run the narrow feedback loop throughout: type/static checks and the smallest relevant tests. Run broader regression in proportion to risk before acceptance. Distinguish local, simulated, device, provider, concurrency, and production evidence.
+Run the narrow feedback loop throughout: only type/static checks and unit/contract/acceptance tests directly affected by this slice. Before acceptance, run **targeted acceptance** for the impacted behavior only. Do **no full-repository** or full-suite regression in the milestone path, and do not repeat broad repository checks across branches. Distinguish local, simulated, device, provider, concurrency, and production evidence only where the current change or fixed acceptance contract directly requires it.
 
 Complete this gate when the slice works through its public seam and every claimed check has recorded evidence.
 
 ## Gate 8: Independent acceptance
 
-Treat every completed slice/node as a milestone. Before starting the next slice, dispatch a fresh subagent against the fixed acceptance baseline for the slice just completed.
+Treat every completed slice/node as a milestone. As soon as its scoped function is complete—whether `compaction_count` is 0, 1, or 2—dispatch a fresh subagent against only the fixed acceptance baseline directly affected by that slice. Do not wait for a compaction boundary before acceptance, commit, integration, or creation of the next branch.
 
 - Give it the raw spec, acceptance IDs, diff/fixed point, and runnable artifacts.
 - Do not give it the intended answer, suspected defect, or implementation rationale.
@@ -192,7 +192,7 @@ Complete this gate when a fresh agent can continue without reconstructing hidden
 
 ## Gate 10: Create the Git checkpoint
 
-After independent acceptance passes:
+After directly affected independent acceptance passes, without waiting for compaction:
 
 1. Confirm the target is a Git worktree and inspect status, diff, and branch.
 2. Stage only files belonging to the accepted slice. Preserve unrelated user changes.
@@ -215,7 +215,7 @@ Declare a milestone complete only when:
 - Harness/spec changes match the implementation;
 - the selected visual target is verified when applicable;
 - frontend structure and every material interaction are user-resolved and `Design status: LOCKED` before implementation;
-- targeted and proportional regression checks pass;
+- directly affected unit/contract/acceptance checks pass, with no full-repository or repeated full-suite run;
 - independent acceptance passes;
 - completed branch results are integrated and every rotated branch has a durable handoff;
 - `HANDOFF.md` is current;

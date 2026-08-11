@@ -41,7 +41,7 @@ Cover normal, unauthorized, conflict, duplicate-submit, empty, loading, and fail
 
 ## 7. Definition of done
 
-Require implementation, proportional tests, independent acceptance, current handoff, and a scoped Git checkpoint.
+Require implementation, directly affected unit/contract/acceptance checks only (no full-repository run), independent targeted acceptance, current handoff, and a scoped Git checkpoint. Completed branches integrate immediately; two compactions are an upper bound, not a merge gate.
 '@
     'spec/README.md' = @'
 # Specification index
