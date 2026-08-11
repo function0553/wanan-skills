@@ -12,7 +12,7 @@ This contract is mandatory for every actionable Wanan project lane. It is projec
 6. Existing projects are not grandfathered. Any completed module without a recorded Wanan assessment becomes `BACKFILL_REQUIRED`; this does not block new implementation, but that historical module must still be taught and receive a valid assessment before final comprehensive learning scoring.
 7. Never read, merge, inherit, or score from `经验学习.md` or grading state outside the active project root.
 8. The final project score is derived only from valid recorded module scores and model-assigned module learning weights. Never run a final exam.
-9. Correct answers are durable internal grading state, not user-facing study content. Store them only in `<project-root>/.wanan/assessment-state.json`; never expose that answer key in chat, `经验学习.md`, `HANDOFF.md`, or normal summaries.
+9. Before an assessment is submitted and graded, correct answers are protected grading state and must exist only in `<project-root>/.wanan/assessment-state.json`. After the full paper is graded, archive each question's `正确答案` and `为什么这样选` in the current project's `经验学习.md` for review. The grading chat still reports only per-question `对/错` and the stage score unless the user separately asks for explanations. Never place answer keys in `HANDOFF.md` or ordinary summaries.
 10. If a previously assessed module changes materially, its old assessment no longer proves mastery of the current implementation. Mark it `REASSESSMENT_REQUIRED`; this remains non-blocking for development but must be resolved before final comprehensive learning scoring.
 
 ## Project-scoped durable grading state
@@ -32,7 +32,7 @@ Minimum shape:
     "MOD-001": {
       "paper_id": "MOD-001-<unique-id>",
       "questions": [
-        {"id": 1, "type": "single", "points": 6, "correct": "A"}
+        {"id": 1, "type": "single", "points": 6, "correct": "A", "knowledge_ids": ["K1"]}
       ],
       "history": []
     }
@@ -43,11 +43,11 @@ Minimum shape:
 Rules:
 
 - Create the hidden file when the Harness learning files are initialized or when an existing project first receives Wanan learning support.
-- Immediately before presenting a generated paper to the user, persist that paper's `paper_id`, question IDs, question types, points, and correct option sets to the matching module in `.wanan/assessment-state.json`.
+- Immediately before presenting a generated paper to the user, persist that paper's `paper_id`, question IDs, question types, points, correct option sets, and referenced chat-taught `knowledge_ids` to the matching module in `.wanan/assessment-state.json`.
 - Write the same `paper_id` into the module section of `经验学习.md` as `Assessment paper ID`.
 - The protected state and visible paper must refer to the same `paper_id`. Never grade an answer against a different or reconstructed paper silently.
 - On reassessment, preserve the prior attempt in `history` when practical, replace the module's current paper state, and keep historical scores in `经验学习.md` for review.
-- Never copy the `correct` values into any user-facing content. Validation errors may say that grading is inconsistent, but must not print the protected answer.
+- Before grading, never copy `correct` values into user-facing content. After the full paper is graded, copy only the finalized per-question `正确答案` plus a beginner-readable `为什么这样选` explanation into `经验学习.md`; keep `.wanan/assessment-state.json` itself hidden and never dump its raw contents. Validation errors may say grading is inconsistent, but must not print the protected answer.
 
 ## Project entry and historical backfill
 
@@ -75,7 +75,7 @@ Immediately after Gate 4 has established/reconciled the Harness and Gate 5 has a
 - modules that will use it;
 - knowledge areas the user will encounter.
 
-Persist a more detailed version to `经验学习.md` under `## 项目技术栈总览`. This project-level brief is orientation only; do not run an exam here unless it is itself an independently completed module.
+Deliver this stack brief in chat first. Then archive the same already-taught content to `经验学习.md` under `## 项目技术栈总览` for review. The file may add review detail, but material that was never taught in chat is not eligible assessment scope. This project-level brief is orientation only; do not run an exam here unless it is itself an independently completed module.
 
 ### Beginner language and Chinese annotation rule
 
@@ -108,14 +108,14 @@ These learning states run alongside implementation and do **not** block developm
 
 After Gate 8 accepts a module:
 
-1. Update `经验学习.md` with a detailed beginner-first lesson before asking the user to study.
-2. In chat, tell the user the module's actual technology stack and core knowledge points concisely, following the Chinese annotation rule.
-3. Explain that the detailed lesson has been written to `经验学习.md`.
+1. **Teach the complete beginner-first lesson directly in chat before relying on any file.** Cover the module's actual technology stack, what each part does, why this project uses it, terms, code mapping, runtime flow, design reason, common mistakes, and deeper understanding. Follow the Chinese annotation rule.
+2. Give each actually taught knowledge point a stable ID such as `K1`, `K2`, `K3`, and show those IDs in the chat lesson.
+3. After the chat lesson is complete, archive the same taught knowledge IDs and review notes in `经验学习.md`. The file may be more detailed for revision, but it cannot replace chat teaching and cannot expand the exam scope beyond what was taught in chat.
 4. Require explicit confirmation such as `学习完成` or an unambiguous equivalent before generating that module's exam. If confirmation is not available yet, keep the module pending and allow implementation of later modules to continue.
-5. Only after confirmation, generate exactly 10 choice questions. Persist the protected answer state and `paper_id` **before** presenting the paper. Append the same visible paper (without answer key) to that module's assessment section.
+5. Only after confirmation, generate exactly 10 choice questions. Every question must declare `知识点来源: Kx` (one or more IDs from the chat lesson). Persist the protected answer state, source IDs, and `paper_id` **before** presenting the paper. Append the same visible paper (without answer key or rationale) to that module's assessment section.
 6. Wait for the user's answers. Development may continue independently.
-7. Grade against `.wanan/assessment-state.json`, append user answers and per-question result, record the stage score, and mark the module `ASSESSED`.
-8. In chat, report only each question as `对` or `错` plus the stage score. Do not reveal correct answers or explanations during grading.
+7. Grade against `.wanan/assessment-state.json`, append user answers and per-question result, record the stage score, and mark the module `ASSESSED`. After the full paper is graded, also append each question's `正确答案` and `为什么这样选` to `经验学习.md`, tied to its `知识点来源`.
+8. In chat, report only each question as `对` or `错` plus the stage score. Do not reveal correct answers or explanations in the grading response unless the user separately asks later.
 9. Neither a pending assessment nor any score can block implementation. The module remains mandatory and must hold a current valid assessment before final comprehensive learning scoring.
 
 ### Material-change reassessment rule
@@ -131,11 +131,11 @@ Mark an already assessed module `REASSESSMENT_REQUIRED` when later accepted work
 
 Do **not** trigger reassessment for cosmetic text/style changes, renames that preserve meaning, formatting-only edits, trivial refactors, or small bug fixes that do not change the taught model.
 
-When reassessment is required, update the lesson to match the current code, preserve the old attempt as historical evidence, set the registry's current score to pending/currently invalid for final scoring, and run a new 10-question module assessment when the user is ready. Development remains non-blocking.
+When reassessment is required, update the lesson to match the current code, preserve the old attempt as historical evidence, set the registry's current score to pending/currently invalid for final scoring, and run a new 10-question module assessment when the user is ready. Because `经验学习.md` keeps prior answers and rationales for review, every reassessment must use a new `paper_id` and a newly generated paper; do not reuse the previous 10 questions unchanged. Development remains non-blocking.
 
 ## Detailed lesson requirements for beginners
 
-The chat lesson is concise. `经验学习.md` is the durable, more detailed study book. Teach each module in this order so a beginner is not dropped into advanced terminology:
+The **chat lesson must be complete**. `经验学习.md` is the durable review book, not a substitute teaching surface. Teach each module directly in chat in this order so a beginner is not dropped into advanced terminology, then archive the same taught knowledge for review:
 
 1. **一句话说明它是干什么的** — describe the module/technology in ordinary language.
 2. **为什么这个项目需要它** — connect the concept to the user's actual feature.
@@ -165,15 +165,15 @@ Every module assessment must satisfy all rules below:
 - Total available points equal exactly 100.
 - Question point values must not all be equal. Do not use ten 10-point questions.
 - Assign points by importance, centrality, and difficulty of the knowledge being tested.
-- Questions test only the lesson for this module and the module's observable implementation. **禁止超出刚刚教学范围**来考冷知识。
+- Questions test only knowledge explicitly delivered in the immediately relevant chat lesson and the module's observable implementation. **禁止超出刚刚聊天教学范围**来考冷知识。 Every question must include `知识点来源: Kx` (or multiple `K` IDs), and every referenced ID must exist in the module's chat-taught knowledge list.
 - 禁止陷阱题、双重否定、故意绕字眼、模糊前提或只有模型自己能猜到的选项差异。
 - Prefer understanding and project application over pure memorization: why this code exists, what a component does, what happens in the real runtime flow, and which choice matches the project's actual implementation.
 - Options must be meaningfully distinguishable; avoid “以上都对/以上都不对” unless that form is genuinely necessary and unambiguous.
 - Difficulty may rise from basic understanding to project application to integrated understanding, but every question must remain answerable from the provided lesson/project evidence.
 - Multiple-choice uses exact-set scoring: all correct options and no incorrect options are required for credit. No partial credit.
-- Persist the paper's protected answer key in `.wanan/assessment-state.json` before showing the paper. Do not rely on conversation memory for grading.
-- During grading, do not reveal the correct option set, answer key, rationale, or correction explanation.
-- `经验学习.md` records the paper ID, question, options, user's submitted answer, and `结果: 对/错`, but never stores a `正确答案` or `答案解析` field.
+- Persist the paper's protected answer key and `knowledge_ids` in `.wanan/assessment-state.json` before showing the paper. Do not rely on conversation memory for grading.
+- During grading chat, do not reveal the correct option set, answer key, rationale, or correction explanation; report only `对/错` and the stage score.
+- Before submission, `经验学习.md` stores only the visible paper and `知识点来源`, without answers or rationales. After the full paper is graded, append the user's submitted answer, `结果: 对/错`, `正确答案`, and `为什么这样选` for every question. The explanation must be beginner-readable and explicitly connect back to the cited `K` knowledge point.
 
 ### Answer input tolerance
 
@@ -266,13 +266,17 @@ Use one file per project root and update it in place. Preserve earlier module le
 ### 本模块技术栈
 <beginner-first detailed lesson with English（中文注释） on first use>
 
+### 本轮聊天教学知识点（考试范围）
+- K1: <已在聊天中完整讲解的知识点>
+- K2: <已在聊天中完整讲解的知识点>
+
 ### 知识优先级
 - 必须掌握: <...>
 - 建议理解: <...>
 - 了解即可: <...>
 
-### 详细知识讲解
-<detailed lesson>
+### 复习讲解
+<只归档/扩展已经在聊天中讲过的知识，不得把未在聊天教学过的新知识纳入考试范围>
 
 ### 项目代码与运行链路对应
 <detailed project-specific mapping>
@@ -283,6 +287,8 @@ Use one file per project root and update it in place. Preserve earlier module le
 ### 阶段考核
 
 #### Q1 [单选 | 6分]
+- 知识点来源: K1
+
 <question>
 
 A. <option>
@@ -292,6 +298,8 @@ D. <option>
 
 - 用户答案: A
 - 结果: 对
+- 正确答案: A
+- 为什么这样选: <结合 K1，用小白能理解的话解释正确选项为什么符合本项目实际；错误选项为何不符合可简要说明>
 
 ...
 
@@ -306,4 +314,4 @@ D. <option>
 - Comprehensive score: <score> / 100
 ```
 
-Do not store secrets, credentials, private keys, paid-service secrets, personal data, or answer keys in `经验学习.md`. The protected answer key exists only in current-project `.wanan/assessment-state.json`.
+Do not store secrets, credentials, private keys, paid-service secrets, or personal data in `经验学习.md`. Before grading, the answer key exists only in current-project `.wanan/assessment-state.json`. After the full paper is graded, `经验学习.md` must store the finalized per-question `正确答案` and `为什么这样选` for revision, while the hidden state remains the canonical grading source.

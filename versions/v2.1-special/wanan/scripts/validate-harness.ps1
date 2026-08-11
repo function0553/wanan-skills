@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
     [string]$ProjectRoot,
@@ -92,7 +92,7 @@ if (-not $AllowPlaceholders) {
     foreach ($relativePath in $required) {
         $targetPath = Join-Path $resolvedRoot $relativePath
         if (Test-Path -LiteralPath $targetPath -PathType Leaf) {
-            $content = Get-Content -Raw -LiteralPath $targetPath
+            $content = Get-Content -Raw -Encoding UTF8 -LiteralPath $targetPath
             if ($content -match '(?im)\bTODO\b|<[^>\r\n]+>') {
                 $errors.Add("Unresolved placeholder: $relativePath")
             }
@@ -102,7 +102,7 @@ if (-not $AllowPlaceholders) {
 
 $agentsPath = Join-Path $resolvedRoot 'AGENTS.md'
 if (Test-Path -LiteralPath $agentsPath -PathType Leaf) {
-    $agents = Get-Content -Raw -LiteralPath $agentsPath
+    $agents = Get-Content -Raw -Encoding UTF8 -LiteralPath $agentsPath
     foreach ($heading in @('Purpose', 'Instruction precedence', 'Spec index', 'Definition of done')) {
         if ($agents -notmatch [regex]::Escape($heading)) {
             $errors.Add("AGENTS.md is missing heading text: $heading")
@@ -114,7 +114,7 @@ $assessmentStatePath = Join-Path $resolvedRoot '.wanan/assessment-state.json'
 $assessmentState = $null
 if (Test-Path -LiteralPath $assessmentStatePath -PathType Leaf) {
     try {
-        $assessmentState = Get-Content -Raw -LiteralPath $assessmentStatePath | ConvertFrom-Json
+        $assessmentState = Get-Content -Raw -Encoding UTF8 -LiteralPath $assessmentStatePath | ConvertFrom-Json
         if ($assessmentState.project_scope -ne 'CURRENT_PROJECT_ONLY') {
             $errors.Add('.wanan/assessment-state.json project_scope must be CURRENT_PROJECT_ONLY')
         }
@@ -131,7 +131,7 @@ if (Test-Path -LiteralPath $assessmentStatePath -PathType Leaf) {
 
 $learningPath = Join-Path $resolvedRoot '经验学习.md'
 if (Test-Path -LiteralPath $learningPath -PathType Leaf) {
-    $learning = Get-Content -Raw -LiteralPath $learningPath
+    $learning = Get-Content -Raw -Encoding UTF8 -LiteralPath $learningPath
     foreach ($token in @('Project scope: CURRENT_PROJECT_ONLY', 'Learning mode: REQUIRED', '## 项目技术栈总览', '## 模块登记表')) {
         if ($learning -notmatch [regex]::Escape($token)) {
             $errors.Add("经验学习.md is missing mandatory learning contract token: $token")
@@ -140,10 +140,6 @@ if (Test-Path -LiteralPath $learningPath -PathType Leaf) {
     if ($learning -match '(?im)^-\s*Learning mode:\s*(OPTIONAL|DISABLED|SKIPPED)\s*$') {
         $errors.Add('Learning mode must remain REQUIRED and cannot be disabled or optional')
     }
-    if ($learning -match '(?im)^\s*(?:-\s*)?(正确答案|答案解析)\s*[:：]') {
-        $errors.Add('经验学习.md must not store correct-answer or answer-explanation fields')
-    }
-
     if ($RequireLearningAssessment) {
         if ([string]::IsNullOrWhiteSpace($LearningModuleId) -or $LearningModuleId -notmatch '^MOD-\d{3}$') {
             $errors.Add('RequireLearningAssessment requires -LearningModuleId MOD-NNN')
@@ -184,6 +180,15 @@ if (Test-Path -LiteralPath $learningPath -PathType Leaf) {
                     $errors.Add("$LearningModuleId Assessment score must use '<0-100> / 100'")
                 }
 
+                $taughtKnowledgeIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+                $knowledgeMatches = [regex]::Matches($moduleBlock, '(?im)^-\s*(K\d+)\s*[:：]\s*\S+.*$')
+                foreach ($knowledgeMatch in $knowledgeMatches) {
+                    [void]$taughtKnowledgeIds.Add($knowledgeMatch.Groups[1].Value.ToUpperInvariant())
+                }
+                if ($taughtKnowledgeIds.Count -lt 1) {
+                    $errors.Add("$LearningModuleId must record at least one chat-taught K knowledge point before assessment")
+                }
+
                 $questionMatches = [regex]::Matches($moduleBlock, '(?m)^####\s+Q(\d+)\s+\[(单选|多选)\s*\|\s*(\d+)分\]\s*$')
                 if ($questionMatches.Count -ne 10) {
                     $errors.Add("$LearningModuleId must contain exactly 10 choice questions")
@@ -222,6 +227,17 @@ if (Test-Path -LiteralPath $learningPath -PathType Leaf) {
                             continue
                         }
                         $qBlock = $qBlockMatch.Value
+                        $knowledgeSource = Get-MarkdownFieldValue -Text $qBlock -Label '知识点来源'
+                        $visibleKnowledgeIds = @([regex]::Matches([string]$knowledgeSource, '(?i)K\d+') | ForEach-Object { $_.Value.ToUpperInvariant() } | Sort-Object -Unique)
+                        if ($visibleKnowledgeIds.Count -lt 1) {
+                            $errors.Add("$LearningModuleId Q$qNum is missing 知识点来源: Kx")
+                        } else {
+                            foreach ($knowledgeId in $visibleKnowledgeIds) {
+                                if (-not $taughtKnowledgeIds.Contains($knowledgeId)) {
+                                    $errors.Add("$LearningModuleId Q$qNum references untaught knowledge ID $knowledgeId")
+                                }
+                            }
+                        }
                         foreach ($option in @('A.', 'B.')) {
                             if ($qBlock -notmatch ('(?m)^' + [regex]::Escape($option) + '\s+\S+')) {
                                 $errors.Add("$LearningModuleId Q$qNum is missing option $option")
@@ -229,11 +245,19 @@ if (Test-Path -LiteralPath $learningPath -PathType Leaf) {
                         }
                         $answer = Get-MarkdownFieldValue -Text $qBlock -Label '用户答案'
                         $result = Get-MarkdownFieldValue -Text $qBlock -Label '结果'
+                        $recordedCorrect = Get-MarkdownFieldValue -Text $qBlock -Label '正确答案'
+                        $rationale = Get-MarkdownFieldValue -Text $qBlock -Label '为什么这样选'
                         if ([string]::IsNullOrWhiteSpace($answer)) {
                             $errors.Add("$LearningModuleId Q$qNum is missing 用户答案")
                         }
                         if ($result -notin @('对','错')) {
                             $errors.Add("$LearningModuleId Q$qNum result must be 对 or 错")
+                        }
+                        if ([string]::IsNullOrWhiteSpace($recordedCorrect)) {
+                            $errors.Add("$LearningModuleId Q$qNum is missing post-grading 正确答案")
+                        }
+                        if (-not (Test-ConcreteValue ([string]$rationale))) {
+                            $errors.Add("$LearningModuleId Q$qNum is missing a concrete 为什么这样选 explanation")
                         }
 
                         if ($null -ne $protectedModule) {
@@ -248,6 +272,19 @@ if (Test-Path -LiteralPath $learningPath -PathType Leaf) {
                                 }
                                 if ([int]$pq.points -ne $qPoints) {
                                     $errors.Add("$LearningModuleId Q$qNum points do not match protected assessment state")
+                                }
+                                $protectedKnowledgeIds = @($pq.knowledge_ids | ForEach-Object { ([string]$_).ToUpperInvariant() } | Sort-Object -Unique)
+                                if ($protectedKnowledgeIds.Count -lt 1) {
+                                    $errors.Add("$LearningModuleId Q$qNum protected state is missing knowledge_ids")
+                                } else {
+                                    $visibleKnowledgeKey = (($visibleKnowledgeIds | Sort-Object -Unique) -join ',')
+                                    $protectedKnowledgeKey = (($protectedKnowledgeIds | Sort-Object -Unique) -join ',')
+                                    if ($visibleKnowledgeKey -ne $protectedKnowledgeKey) {
+                                        $errors.Add("$LearningModuleId Q$qNum 知识点来源 does not match protected assessment state")
+                                    }
+                                }
+                                if (-not [string]::IsNullOrWhiteSpace($recordedCorrect) -and (Normalize-ChoiceAnswer ([string]$recordedCorrect)) -ne (Normalize-ChoiceAnswer ([string]$pq.correct))) {
+                                    $errors.Add("$LearningModuleId Q$qNum recorded 正确答案 does not match protected assessment state")
                                 }
                                 $isCorrect = (Normalize-ChoiceAnswer ([string]$answer)) -eq (Normalize-ChoiceAnswer ([string]$pq.correct))
                                 $expectedResult = if ($isCorrect) { '对' } else { '错' }
@@ -344,7 +381,7 @@ $interactionAcceptanceIds = [System.Collections.Generic.HashSet[string]]::new([S
 $interactionAcceptanceDecisionById = @{}
 $functionalPath = Join-Path $resolvedRoot 'spec/05-acceptance.md'
 if (Test-Path -LiteralPath $functionalPath -PathType Leaf) {
-    $functional = Get-Content -Raw -LiteralPath $functionalPath
+    $functional = Get-Content -Raw -Encoding UTF8 -LiteralPath $functionalPath
     foreach ($token in @('FUN-ACC-', 'Given', 'When', 'Then')) {
         if ($functional -notmatch [regex]::Escape($token)) {
             $errors.Add("Functional acceptance is missing: $token")
@@ -381,7 +418,7 @@ if (Test-Path -LiteralPath $functionalPath -PathType Leaf) {
 
 $designPath = Join-Path $resolvedRoot 'spec/04-visual-and-interaction.md'
 if (Test-Path -LiteralPath $designPath -PathType Leaf) {
-    $design = Get-Content -Raw -LiteralPath $designPath
+    $design = Get-Content -Raw -Encoding UTF8 -LiteralPath $designPath
     foreach ($token in @('Design status:', 'Visual exploration manifest', 'Mode:', 'Page structure', 'Structure status:', 'Interaction coverage', 'Coverage status:', 'Interaction decision register', 'Frontend lock', 'Contract fingerprint:')) {
         if ($design -notmatch [regex]::Escape($token)) {
             $errors.Add("Visual and interaction spec is missing: $token")
@@ -649,7 +686,7 @@ if (Test-Path -LiteralPath $designPath -PathType Leaf) {
 
 $visualPath = Join-Path $resolvedRoot 'spec/06-visual-acceptance.md'
 if (Test-Path -LiteralPath $visualPath -PathType Leaf) {
-    $visual = Get-Content -Raw -LiteralPath $visualPath
+    $visual = Get-Content -Raw -Encoding UTF8 -LiteralPath $visualPath
     if ($RequireFrontendLock) {
         foreach ($token in @('VIS-ACC-', 'Source:', 'Viewport/device:', 'Pass conditions:')) {
             if ($visual -notmatch [regex]::Escape($token)) {
@@ -664,7 +701,7 @@ if (Test-Path -LiteralPath $visualPath -PathType Leaf) {
 
 $indexPath = Join-Path $resolvedRoot 'spec/README.md'
 if (Test-Path -LiteralPath $indexPath -PathType Leaf) {
-    $index = Get-Content -Raw -LiteralPath $indexPath
+    $index = Get-Content -Raw -Encoding UTF8 -LiteralPath $indexPath
     $matches = [regex]::Matches($index, '\]\(([^)]+\.md)\)')
     foreach ($match in $matches) {
         $linked = Join-Path (Split-Path -Parent $indexPath) $match.Groups[1].Value
@@ -682,7 +719,7 @@ if (Test-Path -LiteralPath $indexPath -PathType Leaf) {
 
 $roadmapPath = Join-Path $resolvedRoot 'spec/07-delivery-roadmap.md'
 if (-not $AllowPlaceholders -and (Test-Path -LiteralPath $roadmapPath -PathType Leaf)) {
-    $roadmap = Get-Content -Raw -LiteralPath $roadmapPath
+    $roadmap = Get-Content -Raw -Encoding UTF8 -LiteralPath $roadmapPath
     if ($roadmap -notmatch 'FUN-ACC-\d{3}') {
         $errors.Add('Delivery roadmap does not trace any slice to a FUN-ACC-NNN ID')
     }

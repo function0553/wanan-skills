@@ -22,19 +22,29 @@ Keep the user-facing root session as the controller for every actionable Wanan t
 
 Use branch sessions for independently deliverable slices, research, implementation, or acceptance. Give each branch a fixed scope, owned paths, acceptance IDs, starting revision, expected artifacts, and a prohibition on unrelated writes. Prefer an isolated Git branch/worktree for concurrent writers; read-only branches may share the workspace. Monitor with the platform's wait/listener primitive and compact progress snapshots instead of repeatedly rereading full histories.
 
-Track `compaction_count` per branch. On its first observable compaction, require a branch handoff and continue. On its second, require a final branch handoff, stop assigning work to that branch, create a fresh replacement branch for unfinished scope, and pass only durable artifacts plus the handoff. Never guess that compaction occurred: count a platform compaction signal, a summarized-context boundary, or an explicit branch report.
+Track `compaction_count` per branch as a **corruption-prevention upper bound**, not as a merge gate. A branch never waits for compaction to become mergeable. If its scoped function is complete before any compaction boundary, run only the directly affected targeted acceptance, create the scoped commit, integrate it immediately, retire that completed branch, and open the next bounded branch/slice. On the first observable compaction of still-unfinished work, require a durable handoff and continue. On the second observable compaction of still-unfinished work, require a final handoff, retire the branch, and create a fresh replacement for the remaining scope. Never guess that compaction occurred: count a platform compaction signal, a summarized-context boundary, or an explicit branch report. Two compactions are the upper bound, **not a merge gate** and never a reason to keep completed work alive.
 
-Integrate only completed, accepted branch results. The controller inspects the diff/artifacts, resolves overlaps, runs proportional validation, and merges or cherry-picks the scoped Git result when one exists. A shared-workspace branch is integrated by verified artifact ownership, not by pretending a Git merge occurred. Use [session-orchestration.md](references/session-orchestration.md) for the registry, listener loop, rotation protocol, and integration rules.
+Integrate completed, accepted branch results immediately rather than waiting for compaction. The controller inspects only the scoped diff/artifacts, resolves overlaps, runs the directly affected unit/contract/acceptance checks, and merges or cherry-picks the scoped Git result when one exists. Do not add security review, unrelated audit work, or extra regression merely to occupy a branch until compaction. A shared-workspace branch is integrated by verified artifact ownership, not by pretending a Git merge occurred. Use [session-orchestration.md](references/session-orchestration.md) for the registry, listener loop, upper-bound rotation protocol, and completion-driven integration rules.
 
 If branch-session primitives are unavailable, use a subagent with the same contract. If neither is available, record orchestration as unavailable and continue in the controller without claiming branch independence.
 
 ## Gate 0: One-time local preflight
 
-Run once at the start of the root task, cache the capability/environment manifest in controller state, and pass it to branches. Re-run only for a new root task or direct evidence that the manifest is stale.
+Run this gate exactly once at the start of the root task. Store the capability manifest and environment report in controller state and pass them to every branch; branches must not repeat it. Re-run only when the user starts a new root task or evidence shows the recorded capability changed.
 
-Inventory `read`, `glob`, `grep`, `bash`, and `replace`; prefer native capabilities and use `scripts/file_ops.py` only for missing file-operation adapters. On Windows, use Git Bash and source `scripts/windows-session-preflight.sh <root-task-id>` once; it creates only task-local temp/UTF-8 state and caches the result. PowerShell-dependent work uses the recorded PowerShell 7 path. Never silently install system software, edit profiles, or clean the user's system temp.
+Prefer these local capabilities in order:
 
-Read [local-tooling.md](references/local-tooling.md) for exact mappings, fallback commands, cache behavior, UTF-8 policy, and cleanup boundaries. Complete this gate when the reusable manifest/report is recorded.
+1. `read`: bounded, line-numbered, encoding-aware reads; never load a large file blindly.
+2. `glob`: file discovery by scoped patterns.
+3. `grep`: content search with paths and line numbers.
+4. `bash`: on Windows, invoke Git Bash explicitly and use it as the default terminal.
+5. `replace`: previewed, count-checked, atomic text replacement; use precise patches for small edits.
+
+Inventory native tools once. When `read`, `glob`, `grep`, or `replace` is absent, use `scripts/file_ops.py` as the bundled adapter rather than rediscovering alternatives. When Git Bash is absent, locate it in standard Git for Windows paths; if still absent, request authorization for a supported Git for Windows installation because a Skill cannot safely emulate Bash. Do not perform a system-wide installation silently.
+
+On Windows, source `scripts/windows-session-preflight.sh <root-task-id>` through Git Bash once. It performs a bounded check of the original temp directory, creates a clean task-local temp directory, exports UTF-8 settings for Wanan child processes, detects PowerShell 7, and caches the result for all branches. It never deletes or changes the system temp directory and never edits a PowerShell profile. Prefer Git Bash; run PowerShell-dependent scripts only with PowerShell 7 (`pwsh`) and process-local UTF-8 settings. If PowerShell 7 is missing, request authorization before installing it or use a non-PowerShell adapter when equivalent.
+
+Read [local-tooling.md](references/local-tooling.md) for exact capability mappings, invocation examples, cache behavior, UTF-8 policy, and cleanup boundaries.
 
 ## Gate 1: Ground in evidence
 
@@ -48,11 +58,21 @@ Complete this gate when the current state, governing contracts, and user-owned c
 
 ## Gate 2: Preflight specialized tools and MCPs
 
-Before first use of an external platform, specialized file format, browser, design system, deployment target, remote repository, provider, or unstable API, classify the action risk; read the relevant installed skill and required references; inspect current project/tool schemas and authoritative primary documentation when behavior may change; then select the best purpose-built MCP/app connector. Repeat only when the capability or target changes.
+Run this gate before the first use of an external platform, specialized file format, browser, design system, deployment target, remote repository, provider, or unstable API. Repeat only when the required capability or target system changes. Ordinary local file reads, searches, patches, and test commands stay lightweight unless a specialized connector could materially change correctness.
 
-Prefer read-only discovery before mutation. If no callable connector exists, use the supported plugin/app discovery flow when relevant; otherwise state the fallback, lost guarantees, side effects, and required authorization before taking materially riskier/costly/production-affecting action. Never present advertised metadata as verified backing behavior.
+1. Classify the intended action as read-only, external write, destructive, paid, or production-affecting.
+2. Read the corresponding installed skill's `SKILL.md` completely. Follow its mandatory references and prerequisites before acting.
+3. Inspect relevant project documentation and current tool schemas. For changing APIs or provider behavior, consult primary official documentation rather than relying on recall.
+4. Search the available tool catalog for a purpose-built MCP or app connector by capability. In Codex, use `tool_search` for deferred tools and MCP discovery; do not substitute raw MCP resource enumeration for installed Apps.
+5. Prefer the purpose-built connector over browser automation, shell commands, or raw HTTP when it represents the target system and supports the needed action.
+6. If no suitable connector is callable, check whether an appropriate plugin/app can be installed or connected through the supported plugin-management flow. Suggest it when relevant; do not claim it was installed until confirmed.
+7. If no connector path exists, state the fallback, its lost guarantees, and any authorization or fidelity impact. Ask before using the fallback when it materially changes risk, cost, production state, or the user's result.
+8. Inspect the selected tool's schema and authorization boundary before the first call. Start with read-only discovery when practical, then keep mutations inside the user's explicit scope.
+9. Verify real backing behavior. Do not present metadata, prompt facades, or advertised capabilities as working execution without evidence.
 
-Use [tool-mcp-preflight.md](references/tool-mcp-preflight.md) as the detailed routing/mutation authority. Complete this gate when the chosen capability, schema, authorization boundary, and fallback status are explicit.
+Use [tool-mcp-preflight.md](references/tool-mcp-preflight.md) for capability routing, source order, missing-tool handling, and mutation boundaries.
+
+Complete this gate when the relevant skill and current sources have been read, a suitable MCP/app has been selected or explicitly ruled out, the call schema is understood, and fallback/side effects are visible.
 
 ## Gate 3: Clarify material ambiguity
 
@@ -91,17 +111,33 @@ Complete this gate when strict validation passes, every planned slice traces to 
 
 ## Mandatory learning track: always on
 
-The learning track is a hard Wanan invariant for every actionable lane; informational/clarification-only turns are exempt. The full learning, backfill, reassessment, grading, persistence, bilingual-annotation, beginner-teaching, answer-tolerance, large-file reading, and final-score contract lives in [learning-assessment.md](references/learning-assessment.md). Read it before the first learning action and treat it as the single authority for learning behavior.
+The learning track is a hard Wanan invariant for every actionable lane and cannot be disabled, skipped, or replaced with an optional summary. Informational/clarification-only turns are exempt because they deliver no implemented module. Read [learning-assessment.md](references/learning-assessment.md) before the first learning action.
 
-Keep exactly one current-project `经验学习.md` as the user-facing study/question/score book and one hidden `.wanan/assessment-state.json` as protected grading state. Never merge, inherit, search for, or score from another project's learning artifacts, and never expose protected correct-option sets in chat, `经验学习.md`, `HANDOFF.md`, or summaries.
+Use exactly one **user-facing** learning artifact at the active project root: `经验学习.md`. It belongs only to that project. Never merge, inherit, search for, or score from another project's learning file. **聊天框（chat）是唯一权威的完整教学与考试交互载体：** all knowledge that may be tested must first be fully explained in chat, not merely written to a file. `经验学习.md` is the durable project review/question/score book and may archive or expand already-taught material after it has been presented in chat, but it must never substitute for chat teaching. Maintain one hidden project-local machine state at `.wanan/assessment-state.json` to persist paper IDs, points, correct option sets, and knowledge-source IDs across compaction/session changes. Before grading, protected answers stay hidden there. After the user's full paper is graded, `经验学习.md` must archive each question's correct answer and a beginner-readable `为什么这样选` explanation; do not reveal those explanations in the grading chat unless the user separately asks. Never put answer keys in `HANDOFF.md` or ordinary summaries.
 
-For existing projects, reconstruct only real completed modules from current-project evidence. Missing assessments become `BACKFILL_REQUIRED`; materially changed previously assessed modules become `REASSESSMENT_REQUIRED`. Do not invent placeholder historical modules. Learning and assessment are mandatory backlog work but **do not block later implementation**; low scores, pending confirmation, or pending exams never gate Gate 7. Final comprehensive learning scoring stays `PENDING` until every required module has a current valid assessment.
+### Existing-project backfill
 
-After the Harness/slice plan is ready, give the user a beginner-friendly project stack brief and persist the detailed version in `经验学习.md`. In educational prose, every English technical term or abbreviation gets an immediate Chinese annotation on first appearance in the project overview/module topic (for example `API（应用程序接口）`); literal code, paths, commands, keys, and identifiers remain unchanged.
+On Change and Resume lanes, and on Bootstrap when implementation already exists, reconstruct previously completed deliverable modules from current-project evidence: Harness roadmap/acceptance, `HANDOFF.md`, scoped commits, runnable code, and accepted behavior. Any real completed module without a valid recorded assessment becomes `BACKFILL_REQUIRED`. Register every such module as a mandatory assessment backlog item and prepare its project-grounded lesson. **Do not invent a placeholder historical `MOD-NNN` when project evidence has not established one.** **Do not block Gate 7 or later implementation while the user has not yet completed the learning confirmation or assessment.** Each historical module must still receive one learning cycle and one 10-question assessment before the final comprehensive learning score is produced. Do not collapse clearly separate historical product modules into one giant exam merely to reduce work.
 
-After Gate 8 accepts a module, create/update its detailed beginner-first lesson, tell the user the concise technology/knowledge summary, and wait for explicit learning confirmation before generating that module's assessment. The assessment is always exactly 10 choice-only questions, includes both single-choice and multiple-choice items, totals exactly 100 points with non-uniform point values, persists the protected answer key before presentation, tolerates compact answer formats, reveals only per-question `对/错` plus the module score, and never writes correct answers into `经验学习.md`. Validate completed module assessments with `-RequireLearningAssessment`.
+Neither a low score nor an incomplete assessment blocks implementation progress. If a completed module is still `BACKFILL_REQUIRED`, `WAITING_FOR_LEARNING_CONFIRMATION`, `ASSESSING`, or `REASSESSMENT_REQUIRED`, keep it in the mandatory assessment backlog and continue later implementation when useful. The learning track cannot be skipped: every completed module must still hold a current valid assessment before final comprehensive learning scoring. A score of 0 is valid and never blocks development. If later accepted work materially changes a previously taught/tested technology, architecture/data/control flow, security model, public interface, runtime/deployment model, or core observable behavior, mark that module `REASSESSMENT_REQUIRED`, refresh its lesson, preserve its earlier attempt as history, and reassess when the user is ready; trivial/cosmetic changes do not trigger reassessment.
 
-At full-project completion, do not run another exam. Compute the 0-100 comprehensive learning score only from prior current module scores and assigned learning weights; if any mandatory module is still pending, leave the learning score `PENDING` while allowing project delivery. Finalize and validate the learning record with `-RequireLearningComplete` only after all required module assessments are current.
+### Project stack brief
+
+After the Harness and slice plan are ready, but before first implementation, tell the user the selected/inherited technology stack, each technology's role, why it is used here, the modules that will use it, and the main knowledge areas they will encounter. Assume a beginner unless the user clearly demonstrates otherwise. In user-facing educational prose, every English technical term or abbreviation must receive an immediate Chinese annotation on its first appearance in the project overview/module topic, for example `API（应用程序接口）` and `ORM（对象关系映射）`; do not alter literal code, paths, commands, keys, or identifiers. After presenting the stack knowledge in chat, archive the same already-taught content in `经验学习.md` for review. The file may add review detail, but exam-eligible knowledge must not appear there unless it was already taught in chat. This orientation is not a separate exam unless it is itself a completed deliverable module.
+
+### Per-module learning cycle
+
+After Gate 8 accepts each new module, and for every `BACKFILL_REQUIRED` historical module, run or schedule the following mandatory learning cycle. This cycle is mandatory but non-blocking for subsequent implementation:
+
+1. **Teach the full beginner-first lesson directly in chat first**, grounded only in the current project's real artifacts. Explain in the order: what it does -> why this project needs it -> terms -> code mapping -> runtime flow -> design reason -> common mistakes -> deeper understanding. Classify knowledge as `必须掌握`, `建议理解`, or `了解即可`, apply English（中文注释） on first use of technical English terms, and assign stable knowledge IDs such as `K1`, `K2`, `K3` to the points actually taught in that chat lesson.
+2. After the chat lesson is delivered, archive those same taught knowledge IDs and review notes into that module's section of `经验学习.md`. The file may be more detailed for revision, but **the exam scope is limited to knowledge already explicitly taught in chat**. Never tell the user to read `经验学习.md` instead of giving the teaching content in chat.
+3. Wait for explicit confirmation that learning is complete before generating that module's questions. If the user has not confirmed yet, leave the module in `WAITING_FOR_LEARNING_CONFIRMATION` and allow later development modules to proceed; do not mark the learning requirement complete.
+4. Generate exactly 10 choice-only questions with both single-choice and multiple-choice items. Total points must equal 100 and point values must not all be equal. Every question must include `知识点来源: Kx` (or multiple taught IDs) and may test only those chat-taught IDs. Do not use trick questions, double negatives, ambiguous wording, cold trivia, or content outside the just-delivered chat lesson/project evidence. Before showing the paper, persist a unique `paper_id`, question types/points, correct option sets, and referenced knowledge IDs to current-project `.wanan/assessment-state.json`; write the same `Assessment paper ID` and visible paper (without answers) to `经验学习.md`.
+5. Accept compact answers such as `1A`, `1.A`, `7ABC`, and `7 A,C`; normalize case/separators/spacing. If answers are incomplete or one item is malformed, ask only for the missing/invalid question numbers. Multiple-choice is exact-set scoring with no partial credit.
+6. Grade against `.wanan/assessment-state.json` rather than conversation memory, and in chat report only `对/错` for each question plus the module score. Do not reveal correct options or explanations in the grading chat. **After the whole submitted paper is graded**, append to each question in `经验学习.md`: the user's answer, `结果: 对/错`, `正确答案`, and `为什么这样选` (a beginner-readable explanation tied back to the referenced `K` knowledge point). Do not write these answer/explanation fields before the user submits the paper.
+7. When the user eventually completes the assessment, mark the module `ASSESSED` and run `scripts/validate-harness.ps1 -ProjectRoot <path> -RequireLearningAssessment -LearningModuleId <MOD-NNN>`. Development may already have progressed; the score never gates implementation.
+
+At final project completion, do **not** run another exam. Use only prior module scores and model-assigned learning weights to produce a 0-100 comprehensive score, write the final mastery summary to the same `经验学习.md`, and validate with `-RequireLearningComplete`.
 
 ## Gate 5: Slice the work
 
@@ -152,13 +188,13 @@ Any material visual, structural, responsive, accessibility, or interaction chang
 
 Implement only the selected slice. For frontend work, refuse to scaffold, start a server, edit production frontend files, or invoke `image-to-code` unless Gate 6 is `LOCKED` and `validate-harness.ps1 -RequireFrontendLock` passes. Implement from the selected visual plus interaction register rather than filling behavior gaps yourself. Revalidate server-authoritative rules at write boundaries, preserve permission separation, use transactions/idempotency where the contract requires them, and keep sensitive data out of logs.
 
-Run the narrow feedback loop throughout: type/static checks and the smallest relevant tests. Run broader regression in proportion to risk before acceptance. Distinguish local, simulated, device, provider, concurrency, and production evidence.
+Run the narrow feedback loop throughout: only type/static checks and unit/contract/acceptance tests directly affected by this slice. Before acceptance, run **targeted acceptance** for the impacted behavior only. Do **no full-repository** or full-suite regression in the milestone path, and do not repeat broad repository checks across branches. Distinguish local, simulated, device, provider, concurrency, and production evidence only where the current change or fixed acceptance contract directly requires it.
 
 Complete this gate when the slice works through its public seam and every claimed check has recorded evidence.
 
 ## Gate 8: Independent acceptance
 
-Treat every completed slice/node as a milestone. Before starting the next slice, dispatch a fresh subagent against the fixed acceptance baseline for the slice just completed.
+Treat every completed slice/node as a milestone. As soon as its scoped function is complete—whether `compaction_count` is 0, 1, or 2—dispatch a fresh subagent against only the fixed acceptance baseline directly affected by that slice. Do not wait for a compaction boundary before acceptance, commit, integration, or creation of the next branch.
 
 - Give it the raw spec, acceptance IDs, diff/fixed point, and runnable artifacts.
 - Do not give it the intended answer, suspected defect, or implementation rationale.
@@ -189,7 +225,7 @@ Complete this gate when a fresh agent can continue without reconstructing hidden
 
 ## Gate 10: Create the Git checkpoint
 
-After independent acceptance passes:
+After directly affected independent acceptance passes, without waiting for compaction:
 
 1. Confirm the target is a Git worktree and inspect status, diff, and branch.
 2. Stage only files belonging to the accepted slice plus its project-local `经验学习.md` update and current `HANDOFF.md`. Preserve unrelated user changes.
@@ -212,7 +248,7 @@ Declare a milestone complete only when:
 - Harness/spec changes match the implementation;
 - the selected visual target is verified when applicable;
 - frontend structure and every material interaction are user-resolved and `Design status: LOCKED` before implementation;
-- targeted and proportional regression checks pass;
+- directly affected unit/contract/acceptance checks pass, with no full-repository or repeated full-suite run;
 - independent acceptance passes;
 - the mandatory learning track is active and `经验学习.md` belongs to the current project only; pending module assessments may coexist with completed implementation, but every completed/historical module must hold a current valid `ASSESSED` result before the final comprehensive learning score is finalized;
 - completed branch results are integrated and every rotated branch has a durable handoff;

@@ -17,7 +17,7 @@ Wanan is a self-contained fusion. It does not require the upstream skills to be 
 | Read relevant material and check MCPs before other tools | Gate 2 reads the matching skill and current sources, discovers a purpose-built MCP/app, and makes any fallback explicit before specialized tool use. |
 | Prefer read/glob/grep/Git Bash/replace and fill missing local tools once | Gate 0 inventories capabilities once per root task, uses bundled file adapters, caches the manifest for branches, and routes Windows terminal work through Git Bash. |
 | Avoid slow `%TEMP%` and encoding failures | Gate 0 creates a clean task-local temp directory without changing system Temp, checks PowerShell 7 once, and standardizes child-process UTF-8. |
-| Keep the main session as controller and rotate compressed branches | The controller delegates bounded work, listens for progress, retires a branch after its second compaction, starts a replacement, and integrates only completed accepted results. |
+| Keep the main session as controller and use compaction only as an upper bound | The controller integrates completed accepted work immediately, opens the next bounded branch without waiting for compaction, and rotates only still-unfinished work at the second compaction boundary. |
 | Keep the Skill independent from any one project | Wanan may reuse generalized engineering practices from memory, but rejects project-specific paths, domains, schemas, states, assets, specs, and acceptance baselines unless that project is explicitly in scope. |
 
 ## Matt Pocock concepts incorporated
@@ -40,8 +40,8 @@ Source: `mattpocock/skills` (MIT), especially:
 - Wanan extends Product Design selection with a page-structure and interaction-decision lock before `image-to-code` or frontend implementation.
 - Wanan requires capability discovery and a documentation/MCP preflight before specialized tools or external systems.
 - Wanan performs local capability and Windows environment checks once per root task and shares the cached result with branches.
-- Wanan keeps the root session as controller and makes branch compaction, handoff, replacement, and integration explicit.
-- Wanan treats independent acceptance and scoped version control as milestone gates.
+- Wanan keeps the root session as controller, treats two compactions as an upper-bound corruption boundary rather than a merge gate, and integrates completed accepted branches immediately.
+- Wanan treats directly affected independent acceptance and scoped version control as milestone gates, without full-repository regression.
 - Wanan preserves user-owned workspace changes and distinguishes local evidence from runtime, device, provider, concurrency, paid, and production evidence.
 - Wanan treats the active target as an isolation boundary and never converts one project's business baseline into a universal rule.
 

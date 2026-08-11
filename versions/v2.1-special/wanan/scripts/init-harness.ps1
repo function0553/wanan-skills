@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
     [string]$ProjectRoot
@@ -49,7 +49,7 @@ Cover normal, unauthorized, conflict, duplicate-submit, empty, loading, and fail
 
 ## 7. Definition of done
 
-Require implementation, proportional tests, independent acceptance, mandatory module learning/assessment, current handoff, and a scoped Git checkpoint.
+Require implementation, directly affected unit/contract/acceptance checks only (no full-repository run), independent targeted acceptance, mandatory module learning/assessment, current handoff, and a scoped Git checkpoint. Completed branches integrate immediately; two compactions are an upper bound, not a merge gate.
 '@
     '经验学习.md' = @'
 # 经验学习
@@ -68,7 +68,7 @@ Require implementation, proportional tests, independent acceptance, mandatory mo
 
 ## 项目技术栈总览
 
-TODO: Harness 规划完成后，在开发前记录技术栈、项目用途、选择/继承原因、涉及模块和主要知识点。面向小白的教学正文中，英文技术名词首次出现必须紧跟中文注释。
+TODO: Harness 规划完成后，必须先在聊天框完整讲解技术栈、项目用途、选择/继承原因、涉及模块和主要知识点，再把已经讲过的内容归档到这里供复习。面向小白的教学正文中，英文技术名词首次出现必须紧跟中文注释。
 
 ## 模块登记表
 
@@ -91,15 +91,20 @@ TODO: Harness 规划完成后，在开发前记录技术栈、项目用途、选
 
 TODO
 
+### 本轮聊天教学知识点（考试范围）
+
+- K1: TODO（必须先在聊天框完整讲解）
+- K2: TODO（必须先在聊天框完整讲解）
+
 ### 知识优先级
 
 - 必须掌握: TODO
 - 建议理解: TODO
 - 了解即可: TODO
 
-### 详细知识讲解
+### 复习讲解
 
-TODO
+TODO：只归档/扩展聊天中已经讲过的知识；未在聊天讲过的内容不得进入本模块考试范围。
 
 ### 项目代码与运行链路对应
 
@@ -111,7 +116,7 @@ TODO
 
 ### 阶段考核
 
-学习完成后生成，固定 10 道选择题，包含单选和多选，总分 100 且每题分值不得全部相同。生成试卷时先把 paper_id、分值和正确选项写入本项目 `.wanan/assessment-state.json`，本文件不得保存正确答案。
+学习完成后生成，固定 10 道选择题，包含单选和多选，总分 100 且每题分值不得全部相同。每题必须标记 `知识点来源: Kx`，且只能考聊天框中已经讲过的 K 知识点。生成试卷时先把 paper_id、分值、知识点来源和正确选项写入本项目 `.wanan/assessment-state.json`。考试提交并完成判卷前，本文件不得出现正确答案或解析；判卷完成后，每题必须追加用户答案、对/错、正确答案和“为什么这样选”的复习解析。
 '@
     'spec/README.md' = @'
 # Specification index
