@@ -32,6 +32,13 @@ V2.1 特供版同时完整保留强制学习轨道、聊天框完整教学、英
 - `wanan-v2.1.zip`
 - `wanan-v2.1-special.zip`
 
+## VPS 运维 Skill
+
+- [下载 wanan-vps.zip](packages/wanan-vps.zip)：Wanan VPS Skill v1.0.1，包含 Ubuntu VPS 上的 Marzban/Xray VLESS Reality 与 Clash/Mihomo 订阅部署、迁移、诊断和交接工具。
+- 解压后使用 `wanan-vps/SKILL.md` 作为入口；操作说明见包内 `wanan-vps/references/HANDOFF.md`。
+- 包内清单标注为离线验证；仓库上传不代表已经完成 VPS 部署或现场验收。
+- 本次上传的文件校验和维护说明见 [HANDOFF.md](HANDOFF.md)。
+
 ## 核心目标
 
 V2.0 与 V2.1 的核心目标是让 AI 编程过程在完成代码开发的同时，落实：
